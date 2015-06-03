@@ -1,9 +1,9 @@
 <resources>
 
-    <!--<Resource id="My Router" type="com.scytl.multi.DeterminedRouter" provider="org.router:DeterminedRouter">
+    <Resource id="My Router" type="com.scytl.multi.DeterminedRouter" provider="org.router:DeterminedRouter">
         Tenants = database1 database2 database3
     </Resource>
     <Resource id="Routed Datasource" type="org.apache.openejb.resource.jdbc.Router" provider="RoutedDataSource">
         Router = My Router
-    </Resource>-->
+    </Resource>
 </resources>

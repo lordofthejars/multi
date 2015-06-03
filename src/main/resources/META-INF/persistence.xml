@@ -22,9 +22,10 @@
         <jta-data-source>Routed Datasource</jta-data-source>
         <class>com.scytl.multi.Person</class>
         <properties>
-            <property name="hibernate.hbm2ddl.auto" value="create-drop"/>
+            <property name="hibernate.hbm2ddl.auto" value="none"/>
             <property name="hibernate.dialect" value="org.hibernate.dialect.HSQLDialect"/>
             <property name="hibernate.show_sql" value="true"></property>
+            <property name="hibernate.temp.use_jdbc_metadata_defaults" value="false" />
         </properties>
     </persistence-unit>
 </persistence>

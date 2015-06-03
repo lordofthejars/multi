@@ -65,7 +65,6 @@ public class DeterminedRouter extends AbstractRouter {
     @Override
     public DataSource getDataSource() {
         // lazy init of routed datasources
-
         if (dataSources == null) {
             init();
         }
