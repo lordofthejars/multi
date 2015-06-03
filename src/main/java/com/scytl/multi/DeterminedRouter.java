@@ -14,6 +14,7 @@ import org.apache.openejb.loader.SystemInstance;
 import org.apache.openejb.resource.jdbc.router.AbstractRouter;
 import org.xml.sax.SAXException;
 
+import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
 import javax.enterprise.event.Observes;
 import javax.inject.Inject;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@ApplicationScoped
 public class DeterminedRouter extends AbstractRouter {
     private String tenants;
     private Map<String, DataSource> dataSources = null;
