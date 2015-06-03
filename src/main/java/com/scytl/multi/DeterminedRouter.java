@@ -14,6 +14,8 @@ import org.apache.openejb.loader.SystemInstance;
 import org.apache.openejb.resource.jdbc.router.AbstractRouter;
 import org.xml.sax.SAXException;
 
+import javax.enterprise.event.Event;
+import javax.enterprise.event.Observes;
 import javax.inject.Inject;
 import javax.naming.NamingException;
 import javax.sql.DataSource;
@@ -30,7 +32,7 @@ public class DeterminedRouter extends AbstractRouter {
     private ThreadLocal<DataSource> currentDataSource = new ThreadLocal<DataSource>();
 
     @Inject
-    Person person;
+    Event<CreatedDataSourceEvent> createdDataSourceEventEvent;
 
     /**
      * @param tenantsList datasource resource name, separator is a space
@@ -46,15 +48,23 @@ public class DeterminedRouter extends AbstractRouter {
         readMyTenantFile();
         dataSources = new ConcurrentHashMap<String, DataSource>();
         for (String ds : tenants.split(" ")) {
-            try {
-                Object o = getOpenEJBResource(ds);
-                if (o instanceof DataSource) {
-                    dataSources.put(ds, DataSource.class.cast(o));
-                }
-            } catch (NamingException e) {
-                // ignored
-            }
+            DataSource dataSource = registerTenantDataSource(ds);
+            createdDataSourceEventEvent.fire(new CreatedDataSourceEvent(dataSource));
         }
+    }
+
+    private DataSource registerTenantDataSource(String ds) {
+        try {
+            Object o = getOpenEJBResource(ds);
+            if (o instanceof DataSource) {
+                DataSource datasource = (DataSource)o;
+                dataSources.put(ds, datasource);
+                return datasource;
+            }
+        } catch (NamingException e) {
+            // ignored
+        }
+        return null;
     }
 
     /**
@@ -83,17 +93,11 @@ public class DeterminedRouter extends AbstractRouter {
     }
 
     private void loadResources(InputStream resourceAsStream) {
-        Resources resources = null;
-        try {
-            resources = JaxbOpenejb.unmarshal(Resources.class, resourceAsStream);
-        } catch (ParserConfigurationException e) {
-            throw new IllegalArgumentException(e);
-        } catch (SAXException e) {
-            throw new IllegalArgumentException(e);
-        } catch (JAXBException e) {
-            throw new IllegalArgumentException(e);
-        }
+        Resources resources = unmarshallResources(resourceAsStream);
+        assembleResources(resources);
+    }
 
+    private void assembleResources(Resources resources) {
         ConfigurationFactory component = (ConfigurationFactory) SystemInstance.get().getComponent(OpenEjbConfigurationFactory.class);
         List<Resource> resourcesList = resources.getResource();
         for (Resource resource : resourcesList) {
@@ -104,6 +108,20 @@ public class DeterminedRouter extends AbstractRouter {
                 throw new IllegalArgumentException(e);
             }
         }
+    }
+
+    private Resources unmarshallResources(InputStream resourceAsStream) {
+        Resources resources = null;
+        try {
+            resources = JaxbOpenejb.unmarshal(Resources.class, resourceAsStream);
+        } catch (ParserConfigurationException e) {
+            throw new IllegalArgumentException(e);
+        } catch (SAXException e) {
+            throw new IllegalArgumentException(e);
+        } catch (JAXBException e) {
+            throw new IllegalArgumentException(e);
+        }
+        return resources;
     }
 
     /**
@@ -121,11 +139,9 @@ public class DeterminedRouter extends AbstractRouter {
         currentDataSource.set(ds);
     }
 
-    /**
-     * reset the data source
-     */
-    public void clear() {
-        currentDataSource.remove();
+    public void registerNewTenant(@Observes NewTenantEvent newTenantEvent){
+        assembleResources(newTenantEvent.getResources());
+        DataSource dataSource = registerTenantDataSource(newTenantEvent.getTenantId());
+        createdDataSourceEventEvent.fire(new CreatedDataSourceEvent(dataSource));
     }
-
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <Resource id="database4" type="DataSource">
+        JdbcDriver org.hsqldb.jdbcDriver
+        JdbcUrl jdbc:hsqldb:mem:db4
+        UserName sa
+        Password
+        JtaManaged true
+    </Resource>
+</resources>
