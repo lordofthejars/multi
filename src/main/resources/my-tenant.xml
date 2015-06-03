@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <Resource id="myTenantId" type="DataSource">
+        JdbcDriver org.hsqldb.jdbcDriver
+        JdbcUrl jdbc:hsqldb:mem:dbtenant
+        UserName sa
+        Password
+        JtaManaged true
+    </Resource>
+    <Resource id="database1" type="DataSource">
+     JdbcDriver = org.hsqldb.jdbcDriver
+     JdbcUrl = jdbc:hsqldb:mem:db1
+     UserName = sa
+     Password
+     JtaManaged = true
+    </Resource>
+    <Resource id="database2" type="DataSource">
+     JdbcDriver = org.hsqldb.jdbcDriver
+     JdbcUrl = jdbc:hsqldb:mem:db2
+     UserName = sa
+     Password
+     JtaManaged = true
+    </Resource>
+    <Resource id="database3" type="DataSource">
+     JdbcDriver = org.hsqldb.jdbcDriver
+     JdbcUrl = jdbc:hsqldb:mem:db3
+     UserName = sa
+     Password
+     JtaManaged = true
+    </Resource>
+</resources>
