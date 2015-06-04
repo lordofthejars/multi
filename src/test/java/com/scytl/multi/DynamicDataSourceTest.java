@@ -20,42 +20,6 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
-/**
- * If you are using openejb.xml the test properties are:
- * <p/>
- * <p/>
- * <!-- Router and datasource -->
- * <Resource id="My Router" type="org.apache.openejb.router.test.DynamicDataSourceTest$DeterminedRouter" provider="org.routertest:DeterminedRouter">
- * DatasourceNames = database1 database2 database3
- * DefaultDataSourceName = database1
- * </Resource>
- * <Resource id="Routed Datasource" type="org.apache.openejb.resource.jdbc.Router" provider="org.router:RoutedDataSource">
- * Router = My Router
- * </Resource>
- * <p/>
- * <!-- real datasources -->
- * <Resource id="database1" type="DataSource">
- * JdbcDriver = org.hsqldb.jdbcDriver
- * JdbcUrl = jdbc:hsqldb:mem:db1
- * UserName = sa
- * Password
- * JtaManaged = true
- * </Resource>
- * <Resource id="database2" type="DataSource">
- * JdbcDriver = org.hsqldb.jdbcDriver
- * JdbcUrl = jdbc:hsqldb:mem:db2
- * UserName = sa
- * Password
- * JtaManaged = true
- * </Resource>
- * <Resource id="database3" type="DataSource">
- * JdbcDriver = org.hsqldb.jdbcDriver
- * JdbcUrl = jdbc:hsqldb:mem:db3
- * UserName = sa
- * Password
- * JtaManaged = true
- * </Resource>
- */
 public class DynamicDataSourceTest {
 
     @Inject
@@ -73,7 +37,7 @@ public class DynamicDataSourceTest {
             // persisting a person on database db -> kind of manual round robin
             String name = "record " + i;
             String db = databases[i % 3];
-            ejb.persist(i, name, db);
+            ejb.persist(name, db);
         }
 
         // assert database records number using jdbc
@@ -89,6 +53,16 @@ public class DynamicDataSourceTest {
 
         Resources resources = JaxbOpenejb.unmarshal(Resources.class, DynamicDataSourceTest.class.getResourceAsStream("/newtenant.xml"));
         registerNewTenant.registerTenant("database4", resources);
+
+        ejb.persist("record 18", "database4");
+        Connection connection = DriverManager.getConnection("jdbc:hsqldb:mem:db4", "sa", "");
+        Statement st = connection.createStatement();
+        ResultSet rs = st.executeQuery("select count(*) from PERSON");
+        rs.next();
+        assertEquals(1, rs.getInt(1));
+        st.close();
+        connection.close();
+
         ctx.close();
     }
     public static String inputStreamToString(InputStream is) throws IOException {

@@ -1,6 +1,6 @@
 <resources>
 
-    <Resource id="My Router" type="com.scytl.multi.DeterminedRouter" provider="org.router:DeterminedRouter">
+    <Resource id="My Router" class-name="com.scytl.multi.MultitenancyRouter">
         Tenants = database1 database2 database3
         InitializeAfterDeployment = true
     </Resource>

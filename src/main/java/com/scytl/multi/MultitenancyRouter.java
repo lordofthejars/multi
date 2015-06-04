@@ -5,8 +5,6 @@ import org.apache.openejb.assembler.classic.Assembler;
 import org.apache.openejb.assembler.classic.OpenEjbConfigurationFactory;
 import org.apache.openejb.assembler.classic.ResourceInfo;
 import org.apache.openejb.config.ConfigurationFactory;
-import org.apache.openejb.config.Module;
-import org.apache.openejb.config.ReadDescriptors;
 import org.apache.openejb.config.sys.JaxbOpenejb;
 import org.apache.openejb.config.sys.Resource;
 import org.apache.openejb.config.sys.Resources;
@@ -14,6 +12,7 @@ import org.apache.openejb.loader.SystemInstance;
 import org.apache.openejb.resource.jdbc.router.AbstractRouter;
 import org.xml.sax.SAXException;
 
+import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Event;
 import javax.enterprise.event.Observes;
@@ -26,15 +25,22 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
-@ApplicationScoped
-public class DeterminedRouter extends AbstractRouter {
+public class MultitenancyRouter extends AbstractRouter {
     private String tenants;
     private Map<String, DataSource> dataSources = null;
     private ThreadLocal<DataSource> currentDataSource = new ThreadLocal<DataSource>();
 
     @Inject
     Event<CreatedDataSourceEvent> createdDataSourceEventEvent;
+    @Inject
+    NewTenantListener newTenantListener;
+
+    @PostConstruct
+    public void initializeListener() {
+        newTenantListener.initialize(this);
+    }
 
     /**
      * @param tenantsList datasource resource name, separator is a space
@@ -90,7 +96,7 @@ public class DeterminedRouter extends AbstractRouter {
     }
 
     private void readMyTenantFile() {
-        InputStream resourceAsStream = DeterminedRouter.class.getResourceAsStream("/my-tenant.xml");
+        InputStream resourceAsStream = MultitenancyRouter.class.getResourceAsStream("/my-tenant.xml");
         loadResources(resourceAsStream);
     }
 
@@ -141,9 +147,23 @@ public class DeterminedRouter extends AbstractRouter {
         currentDataSource.set(ds);
     }
 
-    public void registerNewTenant(@Observes NewTenantEvent newTenantEvent){
+    public void registerNewTenant(NewTenantEvent newTenantEvent){
         assembleResources(newTenantEvent.getResources());
         DataSource dataSource = registerTenantDataSource(newTenantEvent.getTenantId());
         createdDataSourceEventEvent.fire(new CreatedDataSourceEvent(dataSource));
+    }
+
+    @ApplicationScoped
+    public static class NewTenantListener {
+
+        private AtomicReference<MultitenancyRouter> enclosing = new AtomicReference<>();
+
+        public void registerNewTenant(@Observes NewTenantEvent newTenantEvent) {
+            enclosing.get().registerNewTenant(newTenantEvent);
+        }
+
+        public void initialize(MultitenancyRouter multitenancyRouter) {
+            enclosing.set(multitenancyRouter);
+        }
     }
 }
