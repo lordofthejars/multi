@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+//This is only an example
 public class CreateDatabaseSchemaListener {
 
     public void createSchema(@Observes CreatedDataSourceEvent event) {
