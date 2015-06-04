@@ -1,8 +1,8 @@
 package com.scytl.multi;
 
 import org.apache.openejb.config.sys.JaxbOpenejb;
+import org.apache.openejb.config.sys.Resource;
 import org.apache.openejb.config.sys.Resources;
-import org.hsqldb.lib.StringInputStream;
 import org.junit.Test;
 
 import javax.ejb.embeddable.EJBContainer;
@@ -16,6 +16,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
@@ -27,11 +29,23 @@ public class DynamicDataSourceTest {
 
     @Test
     public void route() throws Exception {
-        String[] databases = new String[]{"database1", "database2", "database3"};
 
 
         Context ctx = EJBContainer.createEJBContainer().getContext();
         ctx.bind("inject", this);
+
+        List<String> databasesList = new ArrayList<>();
+
+        Resources resources = JaxbOpenejb.unmarshal(Resources.class, DynamicDataSourceTest.class.getResourceAsStream("/my-tenants.xml"));
+
+        List<Resource> tenantResources = resources.getResource();
+        for(Resource tenantResource : tenantResources) {
+            String id = tenantResource.getId();
+            registerNewTenant.registerTenant(id, tenantResource);
+            databasesList.add(id);
+        }
+
+        String[] databases = databasesList.toArray(new String[databasesList.size()]);
         RoutedPersister ejb = (RoutedPersister) ctx.lookup("java:global/multi/RoutedPersister");
         for (int i = 0; i < 18; i++) {
             // persisting a person on database db -> kind of manual round robin
@@ -51,8 +65,8 @@ public class DynamicDataSourceTest {
             connection.close();
         }
 
-        Resources resources = JaxbOpenejb.unmarshal(Resources.class, DynamicDataSourceTest.class.getResourceAsStream("/newtenant.xml"));
-        registerNewTenant.registerTenant("database4", resources);
+        Resource resource = JaxbOpenejb.unmarshal(Resource.class, DynamicDataSourceTest.class.getResourceAsStream("/newtenant.xml"));
+        registerNewTenant.registerTenant("database4", resource);
 
         ejb.persist("record 18", "database4");
         Connection connection = DriverManager.getConnection("jdbc:hsqldb:mem:db4", "sa", "");

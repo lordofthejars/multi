@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class MultitenancyRouter extends AbstractRouter {
     private String tenants;
-    private Map<String, DataSource> dataSources = null;
+    private Map<String, DataSource> dataSources = new ConcurrentHashMap<String, DataSource>();
     private ThreadLocal<DataSource> currentDataSource = new ThreadLocal<DataSource>();
 
     @Inject
@@ -43,21 +43,49 @@ public class MultitenancyRouter extends AbstractRouter {
     }
 
     /**
-     * @param tenantsList datasource resource name, separator is a space
+     * @return the user selected data source if it is set
+     *         or the default one
+     *  @throws IllegalArgumentException if the data source is not found
      */
-    public void setTenants(String tenantsList) {
-        tenants = tenantsList;
+    @Override
+    public DataSource getDataSource() {
+        // lazy init of routed datasources
+        if (dataSources == null) {
+            throw new IllegalArgumentException("you have to specify at least one datasource");
+        }
+        // if no datasource is selected use the default one
+        if (currentDataSource.get() == null) {
+                throw new IllegalArgumentException("you have to specify at least one datasource");
+        }
+
+        // the developper set the datasource to use
+        return currentDataSource.get();
     }
 
-    /**
-     * lookup datasource in openejb resources
-     */
-    private void init() {
-        readMyTenantFile();
-        dataSources = new ConcurrentHashMap<String, DataSource>();
-        for (String ds : tenants.split(" ")) {
-            DataSource dataSource = registerTenantDataSource(ds);
-            createdDataSourceEventEvent.fire(new CreatedDataSourceEvent(dataSource));
+    public void setTenant(String tenant) {
+        if (dataSources == null) {
+            throw new IllegalArgumentException("you have to specify at least one datasource");
+        }
+        if (!dataSources.containsKey(tenant)) {
+            throw new IllegalArgumentException("data source called " + tenant + " can't be found.");
+        }
+        DataSource ds = dataSources.get(tenant);
+        currentDataSource.set(ds);
+    }
+
+    protected void registerNewTenant(NewTenantEvent newTenantEvent){
+        ConfigurationFactory component = (ConfigurationFactory) SystemInstance.get().getComponent(OpenEjbConfigurationFactory.class);
+        assembleResource(component, newTenantEvent.getResource());
+        DataSource dataSource = registerTenantDataSource(newTenantEvent.getTenantId());
+        createdDataSourceEventEvent.fire(new CreatedDataSourceEvent(dataSource));
+    }
+
+    private void assembleResource(ConfigurationFactory component, Resource resource) {
+        try {
+            ResourceInfo resourceInfo = component.configureService(resource, ResourceInfo.class);
+            SystemInstance.get().getComponent(Assembler.class).createResource(resourceInfo);
+        } catch (OpenEJBException e) {
+            throw new IllegalArgumentException(e);
         }
     }
 
@@ -73,84 +101,6 @@ public class MultitenancyRouter extends AbstractRouter {
             // ignored
         }
         return null;
-    }
-
-    /**
-     * @return the user selected data source if it is set
-     *         or the default one
-     *  @throws IllegalArgumentException if the data source is not found
-     */
-    @Override
-    public DataSource getDataSource() {
-        // lazy init of routed datasources
-        if (dataSources == null) {
-            init();
-        }
-        // if no datasource is selected use the default one
-        if (currentDataSource.get() == null) {
-                throw new IllegalArgumentException("you have to specify at least one datasource");
-        }
-
-        // the developper set the datasource to use
-        return currentDataSource.get();
-    }
-
-    private void readMyTenantFile() {
-        InputStream resourceAsStream = MultitenancyRouter.class.getResourceAsStream("/my-tenant.xml");
-        loadResources(resourceAsStream);
-    }
-
-    private void loadResources(InputStream resourceAsStream) {
-        Resources resources = unmarshallResources(resourceAsStream);
-        assembleResources(resources);
-    }
-
-    private void assembleResources(Resources resources) {
-        ConfigurationFactory component = (ConfigurationFactory) SystemInstance.get().getComponent(OpenEjbConfigurationFactory.class);
-        List<Resource> resourcesList = resources.getResource();
-        for (Resource resource : resourcesList) {
-            try {
-                ResourceInfo resourceInfo = component.configureService(resource, ResourceInfo.class);
-                SystemInstance.get().getComponent(Assembler.class).createResource(resourceInfo);
-            } catch (OpenEJBException e) {
-                throw new IllegalArgumentException(e);
-            }
-        }
-    }
-
-    private Resources unmarshallResources(InputStream resourceAsStream) {
-        Resources resources = null;
-        try {
-            resources = JaxbOpenejb.unmarshal(Resources.class, resourceAsStream);
-        } catch (ParserConfigurationException e) {
-            throw new IllegalArgumentException(e);
-        } catch (SAXException e) {
-            throw new IllegalArgumentException(e);
-        } catch (JAXBException e) {
-            throw new IllegalArgumentException(e);
-        }
-        return resources;
-    }
-
-    /**
-     *
-     * @param tenant data source name
-     */
-    public void setTenant(String tenant) {
-        if (dataSources == null) {
-            init();
-        }
-        if (!dataSources.containsKey(tenant)) {
-            throw new IllegalArgumentException("data source called " + tenant + " can't be found.");
-        }
-        DataSource ds = dataSources.get(tenant);
-        currentDataSource.set(ds);
-    }
-
-    public void registerNewTenant(NewTenantEvent newTenantEvent){
-        assembleResources(newTenantEvent.getResources());
-        DataSource dataSource = registerTenantDataSource(newTenantEvent.getTenantId());
-        createdDataSourceEventEvent.fire(new CreatedDataSourceEvent(dataSource));
     }
 
     @ApplicationScoped

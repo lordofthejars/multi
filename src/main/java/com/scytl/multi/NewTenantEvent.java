@@ -1,20 +1,20 @@
 package com.scytl.multi;
-import org.apache.openejb.config.sys.Resources;
+import org.apache.openejb.config.sys.Resource;
 public class NewTenantEvent {
 
     private String tenantId;
-    private Resources resources;
+    private Resource resource;
 
-    public NewTenantEvent(String tenantId, Resources resources) {
+    public NewTenantEvent(String tenantId, Resource resource) {
         this.tenantId = tenantId;
-        this.resources = resources;
+        this.resource = resource;
     }
 
     public String getTenantId() {
         return tenantId;
     }
 
-    public Resources getResources() {
-        return resources;
+    public Resource getResource() {
+        return resource;
     }
 }
